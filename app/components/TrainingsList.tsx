@@ -232,7 +232,7 @@ export default function TrainingsList() {
                       {String(startIndex + index + 1).padStart(2, '0')}
                     </td>
                     <td className="px-3 py-2.5 text-base font-medium text-gray-900">
-                      <div className="truncate max-w-[240px]">{training.training_name}</div>
+                      <div className="max-w-[240px] break-words">{training.training_name}</div>
                     </td>
                     <td className="px-3 py-2.5 text-base text-gray-600">
                       <div className="truncate max-w-[180px]">{training.institution_name}</div>
