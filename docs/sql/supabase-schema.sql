@@ -30,10 +30,10 @@ CREATE TABLE trainings (
   CONSTRAINT valid_dates CHECK (end_date >= start_date)
 );
 
--- certificates 테이블 생성
+-- certificates 테이블 생성 (하나의 연수당 최대 2개의 이수증 파일 허용)
 CREATE TABLE certificates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  training_id UUID UNIQUE NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
+  training_id UUID NOT NULL REFERENCES trainings(id) ON DELETE CASCADE,
   file_name TEXT NOT NULL,
   file_path TEXT NOT NULL,
   file_size INTEGER NOT NULL,
