@@ -13,6 +13,7 @@ import {
   formatFileSize,
   validateFile,
   MAX_FILE_SIZE,
+  MAX_CERTIFICATES_PER_TRAINING,
 } from '@/lib/uploadHelpers'
 
 interface Training {
@@ -43,16 +44,16 @@ export default function CertificatePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [training, setTraining] = useState<Training | null>(null)
-  const [certificate, setCertificate] = useState<Certificate | null>(null)
+  const [certificates, setCertificates] = useState<Certificate[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [downloading, setDownloading] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [navigating, setNavigating] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [dragActive, setDragActive] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const modal = useModal()
 
   useEffect(() => {
@@ -88,30 +89,32 @@ export default function CertificatePage() {
 
       setTraining(trainingData)
 
-      // Load certificate data and signed URL together if exists
-      if (trainingData.has_certificate) {
-        const { data: certData } = await supabase
-          .from('certificates')
-          .select('id, training_id, file_name, file_path, file_size, file_type, created_at')
-          .eq('training_id', trainingId)
-          .single()
+      // Load certificate data (multiple certificates per training)
+      const { data: certDataList } = await supabase
+        .from('certificates')
+        .select('id, training_id, file_name, file_path, file_size, file_type, created_at')
+        .eq('training_id', trainingId)
+        .order('created_at', { ascending: true })
 
-        if (certData) {
-          setCertificate(certData)
+      if (certDataList && certDataList.length > 0) {
+        setCertificates(certDataList)
 
-          // Generate signed URL immediately (avoid separate useEffect cycle)
-          if (certData.file_type.startsWith('image/')) {
+        // Generate signed URLs for image certificates
+        const urls: Record<string, string> = {}
+        for (const cert of certDataList) {
+          if (cert.file_type.startsWith('image/')) {
             const { data: urlData } = await supabase.storage
               .from('certificates')
-              .createSignedUrl(certData.file_path, 3600)
+              .createSignedUrl(cert.file_path, 3600)
             if (urlData?.signedUrl) {
-              setPreviewUrl(urlData.signedUrl)
+              urls[cert.id] = urlData.signedUrl
             }
           }
         }
+        setPreviewUrls(urls)
       } else {
-        setCertificate(null)
-        setPreviewUrl('')
+        setCertificates([])
+        setPreviewUrls({})
       }
     } catch (err: any) {
       console.error('Error loading data:', err)
@@ -124,6 +127,12 @@ export default function CertificatePage() {
   const handleFileSelect = async (file: File) => {
     setError('')
     setSuccess('')
+
+    // Check max limit
+    if (certificates.length >= MAX_CERTIFICATES_PER_TRAINING) {
+      setError(`이수증은 최대 ${MAX_CERTIFICATES_PER_TRAINING}개까지 등록할 수 있습니다.`)
+      return
+    }
 
     // Validate file
     const validation = validateFile(file)
@@ -192,33 +201,29 @@ export default function CertificatePage() {
     }
   }
 
-  const handleDownload = async () => {
-    if (!certificate) return
-
-    setDownloading(true)
+  const handleDownload = async (cert: Certificate) => {
+    setDownloadingId(cert.id)
     setError('')
     try {
-      const result = await downloadCertificate(certificate.file_path, certificate.file_name)
+      const result = await downloadCertificate(cert.file_path, cert.file_name)
 
       if (!result.success) {
         setError(result.error || '다운로드 중 오류가 발생했습니다.')
       }
     } finally {
-      setDownloading(false)
+      setDownloadingId(null)
     }
   }
 
-  const handleDelete = async () => {
-    if (!certificate) return
-
+  const handleDelete = async (cert: Certificate) => {
     const confirmed = await modal.confirm('이수증을 삭제하시겠습니까? 삭제된 파일은 복구할 수 없습니다.')
     if (!confirmed) return
 
-    setDeleting(true)
+    setDeletingId(cert.id)
     setError('')
 
     try {
-      const result = await deleteCertificate(certificate.file_path, trainingId)
+      const result = await deleteCertificate(cert.file_path, trainingId)
 
       if (!result.success) {
         setError(result.error || '삭제 중 오류가 발생했습니다.')
@@ -226,8 +231,6 @@ export default function CertificatePage() {
       }
 
       setSuccess('이수증이 성공적으로 삭제되었습니다.')
-      setCertificate(null)
-      setPreviewUrl('')
 
       // Reload data
       await loadData()
@@ -238,7 +241,7 @@ export default function CertificatePage() {
       console.error('Delete error:', err)
       setError(err.message || '삭제 중 오류가 발생했습니다.')
     } finally {
-      setDeleting(false)
+      setDeletingId(null)
     }
   }
 
@@ -345,85 +348,20 @@ export default function CertificatePage() {
 
         {/* Certificate Upload/Display Area */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-stagger-in stagger-2">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">이수증</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">이수증</h2>
+            <span className="text-sm text-gray-500">{certificates.length}/{MAX_CERTIFICATES_PER_TRAINING}개 등록</span>
+          </div>
 
-          {!certificate ? (
-            /* Upload Area */
-            <div>
-              <div
-                className={`relative border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                  dragActive
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileInputChange}
-                  className="hidden"
-                  disabled={uploading}
-                />
-
-                {uploading ? (
-                  <div>
-                    <div className="inline-block w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-lg font-medium text-gray-900">업로드 중...</p>
-                    <p className="text-sm text-gray-600 mt-2">잠시만 기다려주세요.</p>
-                  </div>
-                ) : (
-                  <div>
-                    <svg
-                      className="mx-auto h-16 w-16 text-gray-400 mb-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
-                    <p className="text-lg font-medium text-gray-900 mb-2">
-                      이수증 파일을 업로드하세요
-                    </p>
-                    <p className="text-sm text-gray-600 mb-4">
-                      드래그 앤 드롭 또는 클릭하여 파일 선택
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      파일 선택
-                    </button>
-                    <p className="text-xs text-gray-500 mt-4">
-                      PDF, JPG, PNG 파일 | 최대 {formatFileSize(MAX_FILE_SIZE)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Certificate Display Area */
-            <div className="space-y-6">
-              {/* Certificate Preview */}
-              <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
+          <div className="space-y-6">
+            {/* Display existing certificates */}
+            {certificates.map((cert, index) => (
+              <div key={cert.id} className="border border-gray-200 rounded-lg p-6 bg-gray-50">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">등록된 이수증</h3>
+                    <h3 className="text-base font-semibold text-gray-900">이수증 {index + 1}</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      {new Date(certificate.created_at).toLocaleDateString('ko-KR')} 업로드
+                      {new Date(cert.created_at).toLocaleDateString('ko-KR')} 업로드
                     </p>
                   </div>
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-success-50 text-success-700">
@@ -432,11 +370,11 @@ export default function CertificatePage() {
                 </div>
 
                 {/* Preview */}
-                {isImage(certificate.file_type) && previewUrl ? (
+                {isImage(cert.file_type) && previewUrls[cert.id] ? (
                   <div className="mb-4">
                     <img
-                      src={previewUrl}
-                      alt="Certificate preview"
+                      src={previewUrls[cert.id]}
+                      alt={`Certificate preview ${index + 1}`}
                       className="w-full h-auto rounded-lg border border-gray-200 shadow-sm"
                     />
                   </div>
@@ -457,7 +395,7 @@ export default function CertificatePage() {
                         />
                       </svg>
                       <p className="text-lg font-medium text-gray-900">PDF 파일</p>
-                      <p className="text-sm text-gray-600 mt-1">{certificate.file_name}</p>
+                      <p className="text-sm text-gray-600 mt-1">{cert.file_name}</p>
                     </div>
                   </div>
                 )}
@@ -466,20 +404,20 @@ export default function CertificatePage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
                     <p className="text-xs text-gray-600">파일명</p>
-                    <p className="text-sm font-medium text-gray-900 mt-1 truncate" title={certificate.file_name}>
-                      {certificate.file_name}
+                    <p className="text-sm font-medium text-gray-900 mt-1 truncate" title={cert.file_name}>
+                      {cert.file_name}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">파일 크기</p>
                     <p className="text-sm font-medium text-gray-900 mt-1">
-                      {formatFileSize(certificate.file_size)}
+                      {formatFileSize(cert.file_size)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">파일 형식</p>
                     <p className="text-sm font-medium text-gray-900 mt-1 uppercase">
-                      {certificate.file_type.split('/')[1] || certificate.file_type}
+                      {cert.file_type.split('/')[1] || cert.file_type}
                     </p>
                   </div>
                 </div>
@@ -487,11 +425,11 @@ export default function CertificatePage() {
                 {/* Action Buttons */}
                 <div className="flex items-center space-x-3 pt-4 border-t border-gray-200">
                   <button
-                    onClick={handleDownload}
-                    disabled={downloading || deleting}
+                    onClick={() => handleDownload(cert)}
+                    disabled={downloadingId === cert.id || deletingId === cert.id}
                     className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {downloading ? (
+                    {downloadingId === cert.id ? (
                       <>
                         <ButtonSpinner className="mr-2 h-5 w-5 text-white" />
                         다운로드 중...
@@ -506,11 +444,11 @@ export default function CertificatePage() {
                     )}
                   </button>
                   <button
-                    onClick={handleDelete}
-                    disabled={deleting || downloading}
+                    onClick={() => handleDelete(cert)}
+                    disabled={deletingId === cert.id || downloadingId === cert.id}
                     className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-white hover:bg-gray-50 text-danger-600 font-medium rounded-lg border border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {deleting ? (
+                    {deletingId === cert.id ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-danger-600" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -529,15 +467,86 @@ export default function CertificatePage() {
                   </button>
                 </div>
               </div>
+            ))}
 
-              {/* Upload New Certificate Option */}
+            {/* Upload Area (show when under max limit) */}
+            {certificates.length < MAX_CERTIFICATES_PER_TRAINING && (
+              <div>
+                <div
+                  className={`relative border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+                    dragActive
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+
+                  {uploading ? (
+                    <div>
+                      <div className="inline-block w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                      <p className="text-lg font-medium text-gray-900">업로드 중...</p>
+                      <p className="text-sm text-gray-600 mt-2">잠시만 기다려주세요.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <svg
+                        className="mx-auto h-16 w-16 text-gray-400 mb-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                      <p className="text-lg font-medium text-gray-900 mb-2">
+                        {certificates.length === 0 ? '이수증 파일을 업로드하세요' : '추가 이수증 파일을 업로드하세요'}
+                      </p>
+                      <p className="text-sm text-gray-600 mb-4">
+                        드래그 앤 드롭 또는 클릭하여 파일 선택
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        파일 선택
+                      </button>
+                      <p className="text-xs text-gray-500 mt-4">
+                        PDF, JPG, PNG 파일 | 최대 {formatFileSize(MAX_FILE_SIZE)} | 최대 {MAX_CERTIFICATES_PER_TRAINING}개
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Max reached message */}
+            {certificates.length >= MAX_CERTIFICATES_PER_TRAINING && (
               <div className="border-t border-gray-200 pt-4">
-                <p className="text-sm text-gray-600 mb-3">
-                  새로운 이수증을 업로드하려면 먼저 기존 파일을 삭제해주세요.
+                <p className="text-sm text-gray-600">
+                  이수증이 최대 {MAX_CERTIFICATES_PER_TRAINING}개 등록되었습니다. 새로운 이수증을 업로드하려면 기존 파일을 삭제해주세요.
                 </p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </main>
     </div>

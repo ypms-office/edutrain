@@ -11,6 +11,7 @@ import {
   validateFile,
   formatFileSize,
   MAX_FILE_SIZE,
+  MAX_CERTIFICATES_PER_TRAINING,
 } from '@/lib/uploadHelpers'
 
 interface MasterData {
@@ -45,8 +46,8 @@ export default function NewTrainingPage() {
   const [customTrainingName, setCustomTrainingName] = useState('')
   const [customInstitutionName, setCustomInstitutionName] = useState('')
 
-  // Certificate file state
-  const [certificateFile, setCertificateFile] = useState<File | null>(null)
+  // Certificate file state (up to 2 files)
+  const [certificateFiles, setCertificateFiles] = useState<File[]>([])
   const [fileError, setFileError] = useState('')
 
   const [loading, setLoading] = useState(false)
@@ -88,23 +89,34 @@ export default function NewTrainingPage() {
 
     if (files && files.length > 0) {
       const file = files[0]
-      const validation = validateFile(file)
 
-      if (!validation.valid) {
-        setFileError(validation.error || '유효하지 않은 파일입니다.')
-        setCertificateFile(null)
+      if (certificateFiles.length >= MAX_CERTIFICATES_PER_TRAINING) {
+        setFileError(`이수증은 최대 ${MAX_CERTIFICATES_PER_TRAINING}개까지 등록할 수 있습니다.`)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
         return
       }
 
-      setCertificateFile(file)
+      const validation = validateFile(file)
+
+      if (!validation.valid) {
+        setFileError(validation.error || '유효하지 않은 파일입니다.')
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+        return
+      }
+
+      setCertificateFiles(prev => [...prev, file])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
-  const handleRemoveFile = () => {
-    setCertificateFile(null)
+  const handleRemoveFile = (index: number) => {
+    setCertificateFiles(prev => prev.filter((_, i) => i !== index))
     setFileError('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -185,14 +197,21 @@ export default function NewTrainingPage() {
 
       if (insertError) throw insertError
 
-      // Upload certificate if provided
-      if (certificateFile && newTraining) {
-        const uploadResult = await uploadCertificate(certificateFile, user.id, newTraining.id)
+      // Upload certificate files if provided
+      if (certificateFiles.length > 0 && newTraining) {
+        const failedUploads: string[] = []
 
-        if (!uploadResult.success) {
-          console.error('Certificate upload error:', uploadResult.error)
-          // Don't fail the entire operation, just show a warning
-          setError('연수는 등록되었으나 이수증 업로드에 실패했습니다. 연수 목록에서 다시 업로드해주세요.')
+        for (const file of certificateFiles) {
+          const uploadResult = await uploadCertificate(file, user.id, newTraining.id)
+          if (!uploadResult.success) {
+            console.error('Certificate upload error:', uploadResult.error)
+            failedUploads.push(file.name)
+          }
+        }
+
+        if (failedUploads.length > 0) {
+          const failedNames = failedUploads.join(', ')
+          setError(`연수는 등록되었으나 일부 이수증 업로드에 실패했습니다 (${failedNames}). 연수 목록에서 다시 업로드해주세요.`)
           setTimeout(() => {
             router.push('/dashboard')
             router.refresh()
@@ -449,10 +468,36 @@ export default function NewTrainingPage() {
             {/* Certificate Upload */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                이수증 파일 (선택사항)
+                이수증 파일 (선택사항, 최대 {MAX_CERTIFICATES_PER_TRAINING}개)
               </label>
               <div className="space-y-3">
-                {!certificateFile ? (
+                {/* Selected files list */}
+                {certificateFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-success-50 border border-success-200 rounded-lg">
+                    <div className="flex items-center flex-1 min-w-0">
+                      <svg className="w-5 h-5 text-success-600 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-success-900 truncate">{file.name}</p>
+                        <p className="text-xs text-success-700">{formatFileSize(file.size)}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      className="ml-3 p-1 text-success-600 hover:text-success-800 hover:bg-success-100 rounded transition-colors flex-shrink-0"
+                      title="파일 제거"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+
+                {/* File select button (show when less than max) */}
+                {certificateFiles.length < MAX_CERTIFICATES_PER_TRAINING && (
                   <div>
                     <input
                       ref={fileInputRef}
@@ -470,36 +515,17 @@ export default function NewTrainingPage() {
                         <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span className="text-sm text-gray-600">이수증 파일 선택</span>
+                        <span className="text-sm text-gray-600">
+                          이수증 파일 선택 ({certificateFiles.length}/{MAX_CERTIFICATES_PER_TRAINING})
+                        </span>
                       </div>
                     </button>
                     <p className="text-xs text-gray-500 mt-2">
-                      PDF, JPG, PNG 파일 | 최대 {formatFileSize(MAX_FILE_SIZE)}
+                      PDF, JPG, PNG 파일 | 최대 {formatFileSize(MAX_FILE_SIZE)} | 최대 {MAX_CERTIFICATES_PER_TRAINING}개
                     </p>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-between p-3 bg-success-50 border border-success-200 rounded-lg">
-                    <div className="flex items-center flex-1 min-w-0">
-                      <svg className="w-5 h-5 text-success-600 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-success-900 truncate">{certificateFile.name}</p>
-                        <p className="text-xs text-success-700">{formatFileSize(certificateFile.size)}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleRemoveFile}
-                      className="ml-3 p-1 text-success-600 hover:text-success-800 hover:bg-success-100 rounded transition-colors flex-shrink-0"
-                      title="파일 제거"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
                 )}
+
                 {fileError && (
                   <p className="text-sm text-danger-600">{fileError}</p>
                 )}

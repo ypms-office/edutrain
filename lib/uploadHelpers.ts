@@ -71,6 +71,9 @@ export function formatFileSize(bytes: number): string {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
 }
 
+// Maximum number of certificate files per training
+export const MAX_CERTIFICATES_PER_TRAINING = 2
+
 // Upload certificate to Supabase Storage
 export async function uploadCertificate(
   file: File,
@@ -84,6 +87,21 @@ export async function uploadCertificate(
     const validation = validateFile(file)
     if (!validation.valid) {
       return { success: false, error: validation.error }
+    }
+
+    // Check how many certificates already exist for this training
+    const { data: existingCerts, error: countError } = await supabase
+      .from('certificates')
+      .select('id')
+      .eq('training_id', trainingId)
+
+    if (countError) {
+      console.error('Count error:', countError)
+      return { success: false, error: '이수증 개수 확인 중 오류가 발생했습니다.' }
+    }
+
+    if (existingCerts && existingCerts.length >= MAX_CERTIFICATES_PER_TRAINING) {
+      return { success: false, error: `이수증은 최대 ${MAX_CERTIFICATES_PER_TRAINING}개까지 등록할 수 있습니다.` }
     }
 
     // Generate file path: {user_id}/{training_id}/{filename}
@@ -122,7 +140,7 @@ export async function uploadCertificate(
     // Save metadata to certificates table
     const { error: dbError } = await supabase
       .from('certificates')
-      .upsert({
+      .insert({
         training_id: trainingId,
         file_name: file.name,
         file_path: filePath,
@@ -173,21 +191,32 @@ export async function deleteCertificate(
       return { success: false, error: '파일 삭제 중 오류가 발생했습니다.' }
     }
 
-    // Delete from certificates table
+    // Delete from certificates table by file_path (specific file)
     const { error: dbError } = await supabase
       .from('certificates')
       .delete()
-      .eq('training_id', trainingId)
+      .eq('file_path', filePath)
 
     if (dbError) {
       console.error('Database delete error:', dbError)
       return { success: false, error: '이수증 정보 삭제 중 오류가 발생했습니다.' }
     }
 
-    // Update trainings.has_certificate to false
+    // Check if any certificates remain for this training
+    const { data: remaining, error: checkError } = await supabase
+      .from('certificates')
+      .select('id')
+      .eq('training_id', trainingId)
+
+    if (checkError) {
+      console.error('Check remaining error:', checkError)
+    }
+
+    // Update has_certificate based on remaining certificates
+    const hasCertificates = remaining && remaining.length > 0
     const { error: updateError } = await supabase
       .from('trainings')
-      .update({ has_certificate: false })
+      .update({ has_certificate: hasCertificates })
       .eq('id', trainingId)
 
     if (updateError) {
