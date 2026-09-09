@@ -7,6 +7,7 @@ import Header from '@/app/components/Header'
 import { Spinner, ButtonSpinner } from '@/components/LoadingIndicators'
 import DateRangePicker from '@/components/DateRangePicker'
 import { useModal } from '@/components/CustomModal'
+import { Credit } from '@/app/components/Credit'
 
 interface MasterData {
   id: string
@@ -543,6 +544,7 @@ export default function EditTrainingPage() {
           </form>
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

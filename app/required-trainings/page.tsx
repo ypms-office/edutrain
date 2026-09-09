@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner } from '@/components/LoadingIndicators'
+import { CreditLine } from '@/app/components/Credit'
 
 interface RequiredTraining {
   id: string
@@ -39,7 +40,7 @@ export default function RequiredTrainingsBridgePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-gray-50 to-blue-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-gray-50 to-blue-50 flex flex-col items-center justify-center px-4 py-8">
       <div className="max-w-2xl w-full animate-fade-in">
         {/* 헤더 */}
         <div className="text-center mb-8">
@@ -125,6 +126,7 @@ export default function RequiredTrainingsBridgePage() {
           </Link>
         </div>
       </div>
+      <CreditLine className="mt-10 w-full max-w-2xl border-t border-gray-200 pt-5 text-center" />
     </div>
   )
 }

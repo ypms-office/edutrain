@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Header from '@/app/components/Header'
 import TrainingsList from '@/app/components/TrainingsList'
+import { Credit } from '@/app/components/Credit'
 
 export const dynamic = 'force-dynamic'
 
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
           <TrainingsList />
         </div>
       </main>
+      <Credit />
     </div>
   )
 }
