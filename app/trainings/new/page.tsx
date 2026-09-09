@@ -13,6 +13,7 @@ import {
   MAX_FILE_SIZE,
   MAX_CERTIFICATES_PER_TRAINING,
 } from '@/lib/uploadHelpers'
+import { Credit } from '@/app/components/Credit'
 
 interface MasterData {
   id: string
@@ -573,6 +574,7 @@ export default function NewTrainingPage() {
           </form>
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

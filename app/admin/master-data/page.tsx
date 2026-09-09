@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Spinner, ButtonSpinner } from '@/components/LoadingIndicators'
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
+import { Credit } from '@/app/components/Credit'
 
 interface MasterItem {
   id: string
@@ -565,6 +566,7 @@ export default function MasterDataPage() {
           )}
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

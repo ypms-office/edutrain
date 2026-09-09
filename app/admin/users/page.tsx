@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PageLoadingSkeleton, ButtonSpinner } from '@/components/LoadingIndicators'
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
+import { Credit } from '@/app/components/Credit'
 
 interface User {
   id: string
@@ -410,6 +411,7 @@ export default function UsersPage() {
           )}
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

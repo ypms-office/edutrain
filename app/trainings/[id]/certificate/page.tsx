@@ -15,6 +15,7 @@ import {
   MAX_FILE_SIZE,
   MAX_CERTIFICATES_PER_TRAINING,
 } from '@/lib/uploadHelpers'
+import { Credit } from '@/app/components/Credit'
 
 interface Training {
   id: string
@@ -549,6 +550,7 @@ export default function CertificatePage() {
           </div>
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

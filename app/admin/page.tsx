@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ButtonSpinner } from '@/components/LoadingIndicators'
+import { CreditLine } from '@/app/components/Credit'
 
 export default function AdminAuthPage() {
   const router = useRouter()
@@ -45,7 +46,7 @@ export default function AdminAuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
         {/* 로고 & 타이틀 */}
         <div className="text-center animate-fade-in">
@@ -110,6 +111,7 @@ export default function AdminAuthPage() {
           </Link>
         </div>
       </div>
+      <CreditLine className="mt-10 w-full max-w-md border-t border-gray-200 pt-5 text-center" />
     </div>
   )
 }

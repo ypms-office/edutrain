@@ -7,6 +7,7 @@ import { PageLoadingSkeleton, ButtonSpinner } from '@/components/LoadingIndicato
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useDebounce } from '@/lib/useDebounce'
 import { useModal } from '@/components/CustomModal'
+import { Credit } from '@/app/components/Credit'
 
 interface User {
   id: string
@@ -1108,6 +1109,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </main>
+      <Credit />
     </div>
   )
 }

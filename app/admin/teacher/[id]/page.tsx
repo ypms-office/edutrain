@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { PageLoadingSkeleton } from '@/components/LoadingIndicators'
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
+import { Credit } from '@/app/components/Credit'
 
 interface User {
   id: string
@@ -268,6 +269,7 @@ export default function TeacherDetailPage() {
           )}
         </div>
       </main>
+      <Credit />
     </div>
   )
 }

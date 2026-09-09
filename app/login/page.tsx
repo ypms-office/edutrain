@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { nameToEmail } from '@/lib/authHelpers'
 import { ButtonSpinner } from '@/components/LoadingIndicators'
+import { CreditLine } from '@/app/components/Credit'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -60,7 +61,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-gray-50 to-blue-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-gray-50 to-blue-50 flex flex-col items-center justify-center px-4 py-8">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-center">
         {/* 왼쪽: 로고 & 타이틀 */}
         <div className="flex flex-col items-center lg:items-start text-center lg:text-left animate-fade-in">
@@ -178,6 +179,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <CreditLine className="mt-10 w-full max-w-5xl border-t border-gray-200 pt-5 text-center" />
     </div>
   )
 }
