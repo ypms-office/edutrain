@@ -8,6 +8,7 @@ import { PageLoadingSkeleton, ButtonSpinner } from '@/components/LoadingIndicato
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
 import { Credit } from '@/app/components/Credit'
+import { adminLogout } from '@/lib/adminApi'
 
 interface User {
   id: string
@@ -215,8 +216,8 @@ export default function UsersPage() {
             {/* 우측 액션 */}
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => {
-                  localStorage.removeItem('admin_authenticated')
+                onClick={async () => {
+                  await adminLogout()
                   router.push('/')
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:text-danger-600 hover:bg-danger-50 rounded-xl border border-gray-200 hover:border-danger-200 transition-colors"

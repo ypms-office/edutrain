@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { adminLookup, adminLogout } from '@/lib/adminApi'
 import { Spinner, ButtonSpinner } from '@/components/LoadingIndicators'
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
@@ -68,21 +69,14 @@ export default function RequiredTrainingsPage() {
 
     setAdding(true)
     try {
-      const supabase = createClient()
       const maxOrder = trainings.length > 0 ? Math.max(...trainings.map(t => t.display_order)) : 0
 
-      const { data, error } = await supabase
-        .from('required_trainings')
-        .insert({
-          name: newName.trim(),
-          url: newUrl.trim(),
-          display_order: maxOrder + 1,
-          is_active: true
-        })
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await adminLookup.insert('required_trainings', {
+        name: newName.trim(),
+        url: newUrl.trim(),
+        display_order: maxOrder + 1,
+        is_active: true
+      })
 
       if (data) {
         setTrainings(prev => [...prev, data])
@@ -110,13 +104,7 @@ export default function RequiredTrainingsPage() {
 
     setSavingEdit(true)
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('required_trainings')
-        .update({ name: editingName.trim(), url: editingUrl.trim() })
-        .eq('id', editingId)
-
-      if (error) throw error
+      await adminLookup.update('required_trainings', editingId, { name: editingName.trim(), url: editingUrl.trim() })
 
       setTrainings(prev => prev.map(item =>
         item.id === editingId
@@ -148,13 +136,7 @@ export default function RequiredTrainingsPage() {
 
     setDeletingId(id)
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('required_trainings')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
+      await adminLookup.remove('required_trainings', id)
 
       setTrainings(prev => prev.filter(item => item.id !== id))
       await modal.alert('삭제되었습니다.', 'success')
@@ -169,13 +151,7 @@ export default function RequiredTrainingsPage() {
   const toggleActive = async (id: string, currentState: boolean) => {
     setTogglingId(id)
     try {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('required_trainings')
-        .update({ is_active: !currentState })
-        .eq('id', id)
-
-      if (error) throw error
+      await adminLookup.update('required_trainings', id, { is_active: !currentState })
 
       setTrainings(prev => prev.map(item =>
         item.id === id ? { ...item, is_active: !currentState } : item
@@ -205,14 +181,10 @@ export default function RequiredTrainingsPage() {
     setTrainings(newItems)
 
     try {
-      const supabase = createClient()
-      const [result1, result2] = await Promise.all([
-        supabase.from('required_trainings').update({ display_order: targetItem.display_order }).eq('id', currentItem.id),
-        supabase.from('required_trainings').update({ display_order: currentItem.display_order }).eq('id', targetItem.id)
+      await Promise.all([
+        adminLookup.update('required_trainings', currentItem.id, { display_order: targetItem.display_order }),
+        adminLookup.update('required_trainings', targetItem.id, { display_order: currentItem.display_order })
       ])
-
-      if (result1.error) throw result1.error
-      if (result2.error) throw result2.error
     } catch (error) {
       console.error('Move item error:', error)
       setTrainings(trainings)
@@ -274,8 +246,8 @@ export default function RequiredTrainingsPage() {
 
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => {
-                  localStorage.removeItem('admin_authenticated')
+                onClick={async () => {
+                  await adminLogout()
                   router.push('/')
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:text-danger-600 hover:bg-danger-50 rounded-xl border border-gray-200 hover:border-danger-200 transition-colors"

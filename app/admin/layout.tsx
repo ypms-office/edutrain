@@ -39,12 +39,29 @@ export default function AdminLayout({
     // localStorage에서 인증 상태 확인
     const adminAuth = localStorage.getItem('admin_authenticated')
 
-    if (adminAuth === 'true') {
-      setIsAuthenticated(true)
-      setIsLoading(false)
-    } else {
+    if (adminAuth !== 'true') {
       // 인증되지 않은 경우 로그인 페이지로 리다이렉트
       router.push('/admin')
+      return
+    }
+
+    setIsAuthenticated(true)
+    setIsLoading(false)
+
+    // localStorage는 화면 표시용일 뿐 — 서버 쿠키 세션이 살아 있는지 확인
+    let cancelled = false
+    fetch('/api/admin/session')
+      .then(res => res.json())
+      .then(({ authenticated }) => {
+        if (cancelled || authenticated) return
+        localStorage.removeItem('admin_authenticated')
+        setIsAuthenticated(false)
+        router.push('/admin')
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
     }
   }, [pathname, router])
 

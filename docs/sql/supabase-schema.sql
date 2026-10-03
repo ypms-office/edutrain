@@ -115,6 +115,21 @@ INSERT INTO admin_config (config_key, config_value) VALUES
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trainings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE master_training_names ENABLE ROW LEVEL SECURITY;
+ALTER TABLE master_institutions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE required_trainings ENABLE ROW LEVEL SECURITY;
+-- admin_config는 정책 없이 RLS만 켠다 → 서버(서비스 롤 키)만 접근 가능
+ALTER TABLE admin_config ENABLE ROW LEVEL SECURITY;
+
+-- 목록 테이블: 읽기만 공개, 쓰기는 관리자 API(/api/admin/lookup)가 처리
+CREATE POLICY "Anyone can read master training names" ON master_training_names
+  FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Anyone can read master institutions" ON master_institutions
+  FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Anyone can read required trainings" ON required_trainings
+  FOR SELECT TO anon, authenticated USING (true);
 
 -- users 테이블 RLS 정책
 CREATE POLICY "Users can view own profile" ON users

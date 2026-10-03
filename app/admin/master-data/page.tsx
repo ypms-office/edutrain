@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { adminLookup, adminLogout } from '@/lib/adminApi'
 import { Spinner, ButtonSpinner } from '@/components/LoadingIndicators'
 import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useModal } from '@/components/CustomModal'
@@ -92,22 +93,15 @@ export default function MasterDataPage() {
 
     setAddingType(type)
     try {
-      const supabase = createClient()
       const table = type === 'training' ? 'master_training_names' : 'master_institutions'
       const { items, setter } = getSetterAndItems(type)
       const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.display_order)) : 0
 
-      const { data, error } = await supabase
-        .from(table)
-        .insert({
-          name: name.trim(),
-          display_order: maxOrder + 1,
-          is_active: true
-        })
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await adminLookup.insert(table, {
+        name: name.trim(),
+        display_order: maxOrder + 1,
+        is_active: true
+      })
 
       // Update local state instead of full refetch
       if (data) {
@@ -142,15 +136,9 @@ export default function MasterDataPage() {
 
     setSavingEdit(true)
     try {
-      const supabase = createClient()
       const table = editingType === 'training' ? 'master_training_names' : 'master_institutions'
 
-      const { error } = await supabase
-        .from(table)
-        .update({ name: editingName.trim() })
-        .eq('id', editingId)
-
-      if (error) throw error
+      await adminLookup.update(table, editingId, { name: editingName.trim() })
 
       // Update local state instead of full refetch
       const { setter } = getSetterAndItems(editingType)
@@ -184,15 +172,9 @@ export default function MasterDataPage() {
 
     setDeletingId(id)
     try {
-      const supabase = createClient()
       const table = type === 'training' ? 'master_training_names' : 'master_institutions'
 
-      const { error } = await supabase
-        .from(table)
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
+      await adminLookup.remove(table, id)
 
       // Update local state instead of full refetch
       const { setter } = getSetterAndItems(type)
@@ -210,15 +192,9 @@ export default function MasterDataPage() {
   const toggleActive = async (id: string, type: MasterType, currentState: boolean) => {
     setTogglingId(id)
     try {
-      const supabase = createClient()
       const table = type === 'training' ? 'master_training_names' : 'master_institutions'
 
-      const { error } = await supabase
-        .from(table)
-        .update({ is_active: !currentState })
-        .eq('id', id)
-
-      if (error) throw error
+      await adminLookup.update(table, id, { is_active: !currentState })
 
       // Update local state instead of full refetch
       const { setter } = getSetterAndItems(type)
@@ -254,17 +230,13 @@ export default function MasterDataPage() {
     setter(newItems)
 
     try {
-      const supabase = createClient()
       const table = type === 'training' ? 'master_training_names' : 'master_institutions'
 
       // Execute both updates in parallel
-      const [result1, result2] = await Promise.all([
-        supabase.from(table).update({ display_order: targetItem.display_order }).eq('id', currentItem.id),
-        supabase.from(table).update({ display_order: currentItem.display_order }).eq('id', targetItem.id)
+      await Promise.all([
+        adminLookup.update(table, currentItem.id, { display_order: targetItem.display_order }),
+        adminLookup.update(table, targetItem.id, { display_order: currentItem.display_order })
       ])
-
-      if (result1.error) throw result1.error
-      if (result2.error) throw result2.error
     } catch (error) {
       console.error('Move item error:', error)
       // Revert on error
@@ -523,8 +495,8 @@ export default function MasterDataPage() {
             {/* 우측 액션 */}
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => {
-                  localStorage.removeItem('admin_authenticated')
+                onClick={async () => {
+                  await adminLogout()
                   router.push('/')
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-600 hover:text-danger-600 hover:bg-danger-50 rounded-xl border border-gray-200 hover:border-danger-200 transition-colors"

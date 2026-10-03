@@ -8,6 +8,7 @@ import { useIsNavigating } from '@/components/NavigationLoadingContext'
 import { useDebounce } from '@/lib/useDebounce'
 import { useModal } from '@/components/CustomModal'
 import { Credit } from '@/app/components/Credit'
+import { adminLogout } from '@/lib/adminApi'
 
 interface User {
   id: string
@@ -201,9 +202,9 @@ export default function AdminDashboardPage() {
     return { overallAchievementRate: avgRate, certificateCompletionRate: certRate }
   }, [teachers])
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setLoggingOut(true)
-    localStorage.removeItem('admin_authenticated')
+    await adminLogout()
     router.push('/')
   }
 
