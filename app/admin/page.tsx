@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { ButtonSpinner } from '@/components/LoadingIndicators'
 import { CreditLine } from '@/app/components/Credit'
 
@@ -19,19 +18,18 @@ export default function AdminAuthPage() {
     setError('')
 
     try {
-      const supabase = createClient()
+      // 관리자 비밀번호는 서버에서 확인한다 (성공 시 httpOnly 쿠키 발급)
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      })
+      const result = await response.json().catch(() => ({}))
 
-      // 관리자 비밀번호 확인
-      const { data, error: fetchError } = await supabase
-        .from('admin_config')
-        .select('config_value')
-        .eq('config_key', 'admin_password')
-        .single()
+      if (response.status >= 500) throw new Error(result.error || '관리자 설정을 불러올 수 없습니다.')
 
-      if (fetchError) throw new Error('관리자 설정을 불러올 수 없습니다.')
-
-      if (data.config_value === password) {
-        // 인증 성공 - localStorage에 저장
+      if (response.ok) {
+        // 인증 성공 - 화면 표시용 플래그 (실제 권한은 서버 쿠키로 검사)
         localStorage.setItem('admin_authenticated', 'true')
         router.push('/admin/dashboard')
         router.refresh()

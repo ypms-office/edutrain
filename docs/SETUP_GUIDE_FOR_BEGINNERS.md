@@ -379,6 +379,23 @@ CREATE POLICY "Users can delete own certificates" ON certificates
   FOR DELETE USING (
     auth.uid() = (SELECT user_id FROM trainings WHERE id = training_id)
   );
+
+-- 목록 테이블 보안 활성화 (읽기만 공개, 수정은 관리자 화면에서만)
+ALTER TABLE master_training_names ENABLE ROW LEVEL SECURITY;
+ALTER TABLE master_institutions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE required_trainings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read master training names" ON master_training_names
+  FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Anyone can read master institutions" ON master_institutions
+  FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY "Anyone can read required trainings" ON required_trainings
+  FOR SELECT TO anon, authenticated USING (true);
+
+-- 관리자 비밀번호 테이블: 정책 없이 보안만 켬 (외부에서 읽기 불가)
+ALTER TABLE admin_config ENABLE ROW LEVEL SECURITY;
 ```
 
 ### 3-3. 실행 결과 확인
