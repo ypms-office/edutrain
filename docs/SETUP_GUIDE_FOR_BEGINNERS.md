@@ -794,13 +794,15 @@ Import 화면의 **"Environment Variables"** 섹션을 펼칩니다:
 ## Step 10: 무료 일시정지 방지 설정 (Keep-Alive)
 
 > **중요**: Supabase 무료 플랜은 **7일간 아무도 사용하지 않으면 자동으로 일시정지**됩니다.
-> 이를 방지하기 위해 3일마다 자동으로 "살아있니?" 신호를 보내는 설정을 합니다.
+> 이를 방지하기 위해 매일 한 번 자동으로 "살아있니?" 신호를 보내는 설정을 합니다.
+> (예전에는 3일마다였지만, 그 간격으로도 한 번 일시정지된 일이 있어 매일로 바꿨습니다.
+> 하루 한 번이 몇 번 빠져도 7일 안에 다시 깨워 줍니다.)
 
 ### 방법 1: Vercel Cron (권장 - 이미 설정됨)
 
 이 프로젝트에는 이미 Keep-Alive 시스템이 내장되어 있습니다:
 
-- `vercel.json` 파일에 3일마다 실행되는 Cron Job이 설정되어 있음
+- `vercel.json` 파일에 매일 실행되는 Cron Job이 설정되어 있음 (UTC 00:00 = 한국 시각 오전 9시 무렵)
 - `app/api/keep-alive/route.ts`에 API가 구현되어 있음
 - Vercel 배포 시 자동으로 활성화됩니다
 
@@ -809,13 +811,14 @@ Import 화면의 **"Environment Variables"** 섹션을 펼칩니다:
   "crons": [
     {
       "path": "/api/keep-alive",
-      "schedule": "0 0 */3 * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
 ```
 
-> Vercel 무료 플랜에서는 Cron Job 실행 횟수에 제한이 있을 수 있습니다.
+> Vercel 무료 플랜(Hobby)은 Cron Job을 하루 한 번까지 실행할 수 있고, 정해진 시각에서 최대 1시간 늦게 돌 수 있습니다.
+> 실행 확인: Vercel → 프로젝트 → Settings → Cron Jobs → [Run] → [View Logs]에서 200이 나오면 정상입니다.
 > 더 확실한 방법을 원하면 아래 방법 2를 추가로 설정하세요.
 
 ### 방법 2: GitHub Actions (추가 안전장치)
