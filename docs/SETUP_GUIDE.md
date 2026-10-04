@@ -220,7 +220,8 @@ CREATE POLICY "Users can delete own files"
 ### 3-7. Free Tier 일시정지 방지 (Keep-Alive)
 
 > Supabase Free Tier는 **7일 동안 활동이 없으면 프로젝트가 일시정지**됩니다.
-> GitHub Actions로 3일마다 DB 쿼리를 보내 이를 방지합니다.
+> Vercel Cron(`vercel.json`)이 매일 한 번 DB 쿼리를 보내 이를 방지합니다.
+> (3일 간격으로도 한 번 일시정지된 일이 있어 매일로 바꿨습니다.) 아래 GitHub Actions는 추가 안전장치입니다.
 
 이 시스템의 구성은 [6장 GitHub Actions 설정](#6-github-actions-설정)에서 자세히 다룹니다.
 
