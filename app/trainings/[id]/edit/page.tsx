@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Header from '@/app/components/Header'
 import { Spinner, ButtonSpinner } from '@/components/LoadingIndicators'
 import DateRangePicker from '@/components/DateRangePicker'
+import SelectDropdown from '@/components/SelectDropdown'
 import { useModal } from '@/components/CustomModal'
 import { Credit } from '@/app/components/Credit'
 
@@ -285,27 +286,23 @@ export default function EditTrainingPage() {
               </label>
               {!useCustomTraining ? (
                 <div className="space-y-2">
-                  <select
+                  <SelectDropdown
                     value={formData.training_name}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
+                    placeholder="연수를 선택하세요"
+                    options={[
+                      ...trainingNames.map((training) => ({ value: training.name, label: training.name })),
+                      { value: 'custom', label: '직접 입력' }
+                    ]}
+                    onChange={(value) => {
+                      if (value === 'custom') {
                         setUseCustomTraining(true)
                         setFormData({ ...formData, training_name: '' })
                       } else {
-                        setFormData({ ...formData, training_name: e.target.value })
+                        setFormData({ ...formData, training_name: value })
                       }
                     }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
-                  >
-                    <option value="">연수를 선택하세요</option>
-                    {trainingNames.map((training) => (
-                      <option key={training.id} value={training.name}>
-                        {training.name}
-                      </option>
-                    ))}
-                    <option value="custom">직접 입력</option>
-                  </select>
+                  />
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -338,27 +335,23 @@ export default function EditTrainingPage() {
               </label>
               {!useCustomInstitution ? (
                 <div className="space-y-2">
-                  <select
+                  <SelectDropdown
                     value={formData.institution_name}
-                    onChange={(e) => {
-                      if (e.target.value === 'custom') {
+                    placeholder="기관을 선택하세요"
+                    options={[
+                      ...institutions.map((institution) => ({ value: institution.name, label: institution.name })),
+                      { value: 'custom', label: '직접 입력' }
+                    ]}
+                    onChange={(value) => {
+                      if (value === 'custom') {
                         setUseCustomInstitution(true)
                         setFormData({ ...formData, institution_name: '' })
                       } else {
-                        setFormData({ ...formData, institution_name: e.target.value })
+                        setFormData({ ...formData, institution_name: value })
                       }
                     }}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
-                  >
-                    <option value="">기관을 선택하세요</option>
-                    {institutions.map((institution) => (
-                      <option key={institution.id} value={institution.name}>
-                        {institution.name}
-                      </option>
-                    ))}
-                    <option value="custom">직접 입력</option>
-                  </select>
+                  />
                 </div>
               ) : (
                 <div className="space-y-2">
